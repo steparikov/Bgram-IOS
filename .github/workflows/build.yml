@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [ master ]
-
   workflow_dispatch:
 
 jobs:
@@ -28,18 +27,12 @@ jobs:
           cp -R $GITHUB_WORKSPACE /Users/Shared/
           mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
 
-      - name: Build the App
+      - name: Build the App (unsigned)
         run: |
           set -x
-
-          # source code paths are included in the final binary, so we need to make them stable across builds
           SOURCE_DIR=/Users/Shared/telegram-ios
-
-          # use canonical bazel root
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
-
           cd $SOURCE_DIR
-
           BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
 
           export APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["app"]);')
@@ -49,12 +42,11 @@ jobs:
           echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
           echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
 
-          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          # Build without codesigning
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
-            --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
