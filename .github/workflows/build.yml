@@ -10,16 +10,19 @@ jobs:
     runs-on: macos-26
 
     steps:
+      # Шаг 1: Проверка репозитория
       - uses: actions/checkout@v2
         with:
           submodules: 'recursive'
           fetch-depth: '0'
 
+      # Шаг 2: Выбор Xcode
       - name: Set active Xcode path
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
           sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
 
+      # Шаг 3: Подготовка исходников
       - name: Create canonical source directory
         run: |
           set -x
@@ -27,12 +30,14 @@ jobs:
           cp -R $GITHUB_WORKSPACE /Users/Shared/
           mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
 
+      # Шаг 4: Сборка без подписи (fake-codesigning)
       - name: Build the App (unsigned)
         run: |
           set -x
           SOURCE_DIR=/Users/Shared/telegram-ios
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
           cd $SOURCE_DIR
+
           BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
 
           export APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["app"]);')
@@ -42,15 +47,16 @@ jobs:
           echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
           echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
 
-          # Build without codesigning
+          # Fake codesigning, чтобы Make.py не падал
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
-          # collect ipa
+          # Сборка IPA
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
@@ -58,13 +64,14 @@ jobs:
             cp "$f" $OUTPUT_PATH/
           done
 
-          # collect dsym
+          # Сборка dSYM
           mkdir -p build/DSYMs
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
             cp -R "$f" build/DSYMs/
           done
           zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
 
+      # Шаг 5: Создание Release
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -78,6 +85,7 @@ jobs:
           draft: false
           prerelease: false
 
+      # Шаг 6: Загрузка IPA
       - name: Upload Release IPA
         id: upload-release-ipa 
         uses: actions/upload-release-asset@v1
@@ -89,6 +97,7 @@ jobs:
           asset_name: Telegram.ipa
           asset_content_type: application/zip
 
+      # Шаг 7: Загрузка dSYM
       - name: Upload Release DSYM
         id: upload-release-dsym 
         uses: actions/upload-release-asset@v1
