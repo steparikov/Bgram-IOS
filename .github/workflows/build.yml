@@ -1,6 +1,5 @@
 name: Build Telegram iOS (Unsigned)
 
-# Триггеры: ручной запуск и пуш в main/master
 on:
   workflow_dispatch:
   push:
@@ -20,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install bazelisk yasm git-lfs
+          brew install bazelisk yasm git-lfs swiftformat xcbeautify yq
 
       # 3️⃣ Инициализируем Git LFS
       - name: Git LFS fetch
@@ -32,12 +31,10 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      # 5️⃣ Сборка Telegram (без подписи)
-      - name: Build Telegram (unsigned)
+      # 5️⃣ Сборка Telegram (unsigned)
+      - name: Build Telegram
         run: |
-          bazelisk build //Telegram:Telegram \
-            --apple_disable_code_signing=true \
-            --compilation_mode=opt
+          bazelisk build //Telegram:Telegram --compilation_mode=opt
 
       # 6️⃣ Поиск IPA
       - name: Locate IPA
