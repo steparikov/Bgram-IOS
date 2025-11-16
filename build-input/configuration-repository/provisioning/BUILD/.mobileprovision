@@ -1,0 +1,4 @@
+ios_provisioning_profile(
+    name = "BroadcastUpload.mobileprovision",
+    provisioning_profile = "BroadcastUpload.mobileprovision",
+)

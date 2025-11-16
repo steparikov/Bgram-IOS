@@ -62,7 +62,6 @@ bazel-testlogs/*
 xcodeproj.bazelrc
 */*.swp
 *.swp
-build-input/*
 **/*.pyc
 *.pyc
 submodules/OpusBinding/SharedHeaders/*
