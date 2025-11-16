@@ -1,35 +1,53 @@
 name: Build Telegram iOS (Unsigned)
 
+# Триггеры: ручной запуск и пуш в main/master
 on:
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 120
 
     steps:
-      - name: Checkout repo
+      # 1️⃣ Клонируем репозиторий
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install deps
+      # 2️⃣ Устанавливаем зависимости через Homebrew
+      - name: Install dependencies
         run: |
           brew update
-          brew install bazelisk yasm
+          brew install bazelisk yasm git-lfs
 
+      # 3️⃣ Инициализируем Git LFS
+      - name: Git LFS fetch
+        run: |
+          git lfs install
+          git lfs pull
+
+      # 4️⃣ Выбираем Xcode
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Build (NO codesign)
+      # 5️⃣ Сборка Telegram (без подписи)
+      - name: Build Telegram (unsigned)
         run: |
-          bazelisk build //Telegram:Telegram --apple_disable_code_signing=true
+          bazelisk build //Telegram:Telegram \
+            --apple_disable_code_signing=true \
+            --compilation_mode=opt
 
-      - name: Find IPA
-        run: find . -name "*.ipa"
+      # 6️⃣ Поиск IPA
+      - name: Locate IPA
+        run: |
+          echo "Searching for IPA..."
+          find . -type f -iname "*.ipa"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      # 7️⃣ Загрузка артефакта на GitHub (v4)
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
         with:
           name: Telegram-unsigned
           path: "**/*.ipa"
